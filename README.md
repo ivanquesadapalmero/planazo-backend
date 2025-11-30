@@ -1,1 +1,1 @@
-# planazo-app
+# planazo-backend
