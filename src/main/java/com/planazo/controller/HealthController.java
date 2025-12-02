@@ -25,7 +25,6 @@ public class HealthController {
         return response;
     }
 
-    // Endpoint para probar excepciones
     @GetMapping("/test-error")
     public String testError(@RequestParam(required = false) String type) {
         if ("notfound".equals(type)) {
