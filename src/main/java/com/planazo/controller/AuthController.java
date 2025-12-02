@@ -1,9 +1,12 @@
 package com.planazo.controller;
 
+import com.planazo.dto.request.ForgotPasswordRequest;
 import com.planazo.dto.request.LoginRequest;
 import com.planazo.dto.request.RegisterRequest;
+import com.planazo.dto.request.ResetPasswordRequest;
 import com.planazo.dto.response.AuthResponse;
 import com.planazo.dto.response.UserResponse;
+import com.planazo.service.PasswordResetService;
 import com.planazo.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ import java.util.Map;
 public class AuthController {
 
     private final UserService userService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -57,5 +61,36 @@ public class AuthController {
         response.put("status", "authenticated");
         return ResponseEntity.ok(response);
     }
-}
 
+    /**
+     * Solicitar reset de contraseña
+     * POST /api/auth/forgot-password
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        log.info("Solicitud de reset de contraseña para: {}", request.getEmail());
+
+        passwordResetService.requestPasswordReset(request);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Si el email existe, recibirás un enlace para resetear tu contraseña");
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Resetear contraseña con token
+     * POST /api/auth/reset-password
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        log.info("Intentando resetear contraseña");
+
+        passwordResetService.resetPassword(request);
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Contraseña actualizada exitosamente");
+
+        return ResponseEntity.ok(response);
+    }
+}
