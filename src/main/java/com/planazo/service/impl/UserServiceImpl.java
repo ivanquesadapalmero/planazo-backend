@@ -1,17 +1,25 @@
 package com.planazo.service.impl;
 
 import com.planazo.dto.UserMapper;
+import com.planazo.dto.request.LoginRequest;
 import com.planazo.dto.request.RegisterRequest;
 import com.planazo.dto.request.UpdateProfileRequest;
+import com.planazo.dto.response.AuthResponse;
 import com.planazo.dto.response.UserResponse;
 import com.planazo.exception.BadRequestException;
 import com.planazo.exception.ConflictException;
 import com.planazo.exception.ResourceNotFoundException;
+import com.planazo.exception.UnauthorizedException;
 import com.planazo.model.User;
 import com.planazo.repository.UserRepository;
+import com.planazo.security.JwtUtil;
 import com.planazo.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +31,8 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+    private final AuthenticationManager authenticationManager;
 
     @Override
     @Transactional
@@ -35,7 +45,7 @@ public class UserServiceImpl implements UserService {
             throw new ConflictException("El email ya está registrado");
         }
 
-        // Validar formato de email (ya validado por @Email pero por si acaso)
+        // Validar formato de email
         if (!isValidEmail(request.getEmail())) {
             throw new BadRequestException("Formato de email inválido");
         }
@@ -54,6 +64,51 @@ public class UserServiceImpl implements UserService {
 
         // Convertir a DTO y retornar
         return UserMapper.toUserResponse(savedUser);
+    }
+
+    @Override
+    public AuthResponse login(LoginRequest request) {
+        log.debug("Intentando login para email: {}", request.getEmail());
+
+        try {
+            // Autenticar usando Spring Security
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            request.getEmail().toLowerCase().trim(),
+                            request.getPassword()
+                    )
+            );
+
+            // Si llegamos aquí, la autenticación fue exitosa
+            log.debug("Autenticación exitosa para: {}", request.getEmail());
+
+        } catch (BadCredentialsException e) {
+            log.warn("Intento de login fallido para email: {}", request.getEmail());
+            throw new UnauthorizedException("Email o contraseña incorrectos");
+        }
+
+        // Buscar el usuario en la base de datos
+        User user = userRepository.findByEmail(request.getEmail().toLowerCase().trim())
+                .orElseThrow(() -> new UnauthorizedException("Email o contraseña incorrectos"));
+
+        // Verificar que el usuario esté activo
+        if (!user.getActive()) {
+            log.warn("Intento de login de usuario inactivo: {}", request.getEmail());
+            throw new UnauthorizedException("Usuario inactivo");
+        }
+
+        // Generar token JWT
+        String token = jwtUtil.generateToken(user.getEmail(), user.getId());
+        log.info("Login exitoso para usuario ID: {}", user.getId());
+
+        // Construir y retornar la respuesta
+        UserResponse userResponse = UserMapper.toUserResponse(user);
+
+        return AuthResponse.builder()
+                .token(token)
+                .type("Bearer")
+                .user(userResponse)
+                .build();
     }
 
     @Override
@@ -102,12 +157,9 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
-        // Soft delete: marcar como inactivo en lugar de eliminar
+        // Soft delete: marcar como inactivo
         user.setActive(false);
         userRepository.save(user);
-
-        // Si quieres hard delete (eliminar físicamente):
-        // userRepository.delete(user);
 
         log.info("Cuenta eliminada (desactivada) para usuario ID: {}", userId);
     }
