@@ -1,0 +1,60 @@
+### ============================================
+### HEALTH CHECK
+### ============================================
+
+### Health Check
+GET http://localhost:8080/api/health
+
+### ============================================
+### AUTENTICACIÓN
+### ============================================
+
+### 1. Registrar usuario
+POST http://localhost:8080/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "ivan@planazo.com",
+  "password": "password123",
+  "name": "Ivan"
+}
+
+### 2. Login (copia el token de la respuesta)
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ivan@planazo.com",
+  "password": "password123"
+}
+
+### 3. Verificar token
+GET http://localhost:8080/api/auth/verify
+Authorization: Bearer PEGA_TU_TOKEN_AQUI
+
+### ============================================
+### GESTIÓN DE PERFIL (requiere token)
+### ============================================
+
+### 4. Ver mi perfil
+GET http://localhost:8080/api/users/me
+Authorization: Bearer PEGA_TU_TOKEN_AQUI
+
+### 5. Actualizar mi perfil
+PUT http://localhost:8080/api/users/me
+Content-Type: application/json
+Authorization: Bearer PEGA_TU_TOKEN_AQUI
+
+{
+  "nombre": "Ivan Actualizado",
+  "bio": "Desarrollador fullstack apasionado por crear apps increíbles",
+  "fotoUrl": "https://ejemplo.com/mi-foto.jpg"
+}
+
+### 6. Ver perfil de otro usuario (cambia el ID)
+GET http://localhost:8080/api/users/1
+Authorization: Bearer PEGA_TU_TOKEN_AQUI
+
+### 7. Eliminar mi cuenta (CUIDADO - esto desactiva la cuenta)
+DELETE http://localhost:8080/api/users/me
+Authorization: Bearer PEGA_TU_TOKEN_AQUI
