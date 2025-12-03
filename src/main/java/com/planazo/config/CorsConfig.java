@@ -16,20 +16,31 @@ public class CorsConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Permitir peticiones desde Flutter (localhost en desarrollo)
-        configuration.setAllowedOrigins(List.of(
+        // CAMBIO CLAVE: usar allowedOriginPatterns en lugar de allowedOrigins
+        configuration.setAllowedOriginPatterns(List.of(
                 "http://localhost:*",
                 "http://127.0.0.1:*"
         ));
 
         // Métodos HTTP permitidos
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
+        ));
 
         // Headers permitidos
-        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowedHeaders(List.of("*"));
+
+        // Exponer headers (importante para Authorization)
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type"
+        ));
 
         // Permitir credenciales
         configuration.setAllowCredentials(true);
+
+        // Tiempo de caché para preflight requests
+        configuration.setMaxAge(3600L);
 
         // Aplicar configuración a todos los endpoints
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
