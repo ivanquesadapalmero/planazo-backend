@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -38,12 +39,25 @@ public class ParticipationServiceImpl implements ParticipationService {
         // Validaciones
         validateJoinPlan(plan, user);
 
-        // Crear participación
-        Participation participation = Participation.builder()
-                .plan(plan)
-                .user(user)
-                .status(ParticipationStatus.CONFIRMED)
-                .build();
+        // Buscar si ya existe una participación previa (LEFT o REMOVED)
+        Optional<Participation> existingParticipation = participationRepository.findByPlanIdAndUserId(planId, user.getId());
+
+        Participation participation;
+
+        if (existingParticipation.isPresent()) {
+            // Reutilizar la participación existente
+            participation = existingParticipation.get();
+            participation.setStatus(ParticipationStatus.CONFIRMED);
+            participation.setLeftAt(null);
+            participation.setJoinedAt(LocalDateTime.now()); // Actualizar fecha de unión
+        } else {
+            // Crear nueva participación
+            participation = Participation.builder()
+                    .plan(plan)
+                    .user(user)
+                    .status(ParticipationStatus.CONFIRMED)
+                    .build();
+        }
 
         participationRepository.save(participation);
 
@@ -189,7 +203,7 @@ public class ParticipationServiceImpl implements ParticipationService {
             throw new BadRequestException("You are already the creator of this plan");
         }
 
-        // Verificar que no esté ya participando
+        // Verificar que no esté ya participando (solo CONFIRMED)
         boolean isAlreadyParticipating = participationRepository.existsByPlanIdAndUserIdAndStatus(
                 plan.getId(),
                 user.getId(),
@@ -205,6 +219,7 @@ public class ParticipationServiceImpl implements ParticipationService {
             throw new BadRequestException("Cannot join a plan that has already happened");
         }
     }
+
 
     private Plan findPlanById(Long planId) {
         return planRepository.findById(planId)
